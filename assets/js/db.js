@@ -231,6 +231,82 @@ async function runMigrations() {
   }
 }
 
+// ── Demo dataset ──────────────────────────────────────────────────
+// Ids created by seedDatabase(). Listing them explicitly lets the reset drop
+// the demo dataset while leaving anything the user entered untouched.
+const range = (prefix, from, to) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}${from + i}`);
+
+const SEED_IDS = {
+  transactions:     range('tx', 1, 9),
+  invoice_payments: range('ip', 1, 4),
+  invoices:         range('inv', 1, 6),
+  milestones:       range('ms', 1, 13),
+  projects:         range('pr', 1, 4),
+  clients:          range('cl', 1, 4),
+  expenses:         range('ex', 1, 7),
+  accounts:         range('acc', 1, 4),
+};
+
+// Stores the reset never touches. Clearing settings would drop the `seeded`
+// flag and make seedDatabase() refill the whole demo dataset on next load;
+// users must survive or nobody can log back in; categories are the user's
+// own chart of accounts.
+const RESET_KEEPS = ['settings', 'users', 'categories'];
+
+// What a reset would remove, without changing anything.
+async function previewDemoReset({ wipeAllAccounts = false } = {}) {
+  const counts = {};
+  for (const [store, ids] of Object.entries(SEED_IDS)) {
+    if (store === 'accounts') continue;
+    let n = 0;
+    for (const id of ids) if (await DB.get(store, id)) n++;
+    counts[store] = n;
+  }
+
+  const accounts = await DB.getAll('accounts');
+  const doomedAccounts = wipeAllAccounts
+    ? accounts.map(a => a.id)
+    : SEED_IDS.accounts.filter(id => accounts.some(a => a.id === id));
+  counts.accounts = doomedAccounts.length;
+
+  // Transactions the user entered themselves that point at an account which
+  // is about to disappear — they survive the reset but lose their link.
+  const survivingTx = (await DB.getAll('transactions')).filter(t => !SEED_IDS.transactions.includes(t.id));
+  counts.orphanedTransactions = survivingTx.filter(t => doomedAccounts.includes(t.account_id)).length;
+  counts.keptTransactions = survivingTx.length;
+
+  return counts;
+}
+
+async function resetDemoData({ wipeAllAccounts = false } = {}) {
+  const removed = {};
+
+  for (const [store, ids] of Object.entries(SEED_IDS)) {
+    if (store === 'accounts') continue;
+    let n = 0;
+    for (const id of ids) {
+      if (await DB.get(store, id)) { await DB.delete(store, id); n++; }
+    }
+    removed[store] = n;
+  }
+
+  if (wipeAllAccounts) {
+    const accounts = await DB.getAll('accounts');
+    for (const a of accounts) await DB.delete('accounts', a.id);
+    removed.accounts = accounts.length;
+  } else {
+    let n = 0;
+    for (const id of SEED_IDS.accounts) {
+      if (await DB.get('accounts', id)) { await DB.delete('accounts', id); n++; }
+    }
+    removed.accounts = n;
+  }
+
+  await DB.put('settings', { key: 'demo_reset_at', value: new Date().toISOString() });
+  console.log('[DB] Demo data reset:', removed);
+  return removed;
+}
+
 // ── Seed Data ─────────────────────────────────────────────────────
 async function seedDatabase() {
   const seeded = await DB.get('settings', 'seeded');
@@ -374,4 +450,8 @@ window.genId = genId;
 window.genInvoiceNumber = genInvoiceNumber;
 window.seedDatabase = seedDatabase;
 window.runMigrations = runMigrations;
+window.previewDemoReset = previewDemoReset;
+window.resetDemoData = resetDemoData;
+window.SEED_IDS = SEED_IDS;
+window.RESET_KEEPS = RESET_KEEPS;
 window.STORES = STORES;

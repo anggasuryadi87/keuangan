@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { id: 'clients',         icon: 'users',              label: 'Klien',            roles: ['all'] },
   { id: 'categories',      icon: 'tag',                label: 'Kategori',         roles: ['admin','finance_manager'] },
   { id: 'users',           icon: 'user-cog',           label: 'Pengguna',         roles: ['admin'] },
+  { id: 'settings',        icon: 'settings',           label: 'Pengaturan',       roles: ['admin'] },
 ];
 
 // ── Router ────────────────────────────────────────────────────────
@@ -61,6 +62,7 @@ const Router = {
       clients: 'Data Klien',
       categories: 'Kategori Arus Kas',
       users: 'Manajemen Pengguna',
+      settings: 'Pengaturan',
     };
     return titles[page] || 'FinMS';
   },
@@ -114,6 +116,7 @@ async function renderPage(page) {
       case 'clients':        await renderClients(el);         break;
       case 'categories':     await renderCategories(el);      break;
       case 'users':          await renderUsers(el);           break;
+      case 'settings':       await renderSettings(el);        break;
       default:               el.innerHTML = '<p style="padding:40px;color:var(--text-muted)">Halaman tidak ditemukan.</p>';
     }
     if (window.lucide) lucide.createIcons();
@@ -2242,6 +2245,114 @@ async function renderUsers(el) {
       renderPage('users');
     }
   };
+}
+
+// ════════════════════════════════════════════════════
+// ── SETTINGS ─────────────────────────────────────────
+// ════════════════════════════════════════════════════
+async function renderSettings(el) {
+  if (Auth.user.role !== 'admin') {
+    el.innerHTML = `<div style="padding:40px;color:var(--text-muted);">Halaman ini hanya untuk Administrator.</div>`;
+    return;
+  }
+
+  const LABELS = {
+    transactions: 'Transaksi demo', accounts: 'Rekening bank', clients: 'Klien',
+    projects: 'Proyek', milestones: 'Milestone', invoices: 'Invoice',
+    invoice_payments: 'Pembayaran invoice', expenses: 'Pengeluaran',
+  };
+
+  async function paint() {
+    const wipeAll = document.getElementById('reset-wipe-accounts')?.checked ?? true;
+    const c = await previewDemoReset({ wipeAllAccounts: wipeAll });
+    const rows = Object.keys(LABELS)
+      .map(k => `<tr><td>${LABELS[k]}</td><td style="text-align:right;font-weight:700;" class="${c[k] ? 'text-primary' : ''}">${c[k] || 0}</td></tr>`)
+      .join('');
+
+    document.getElementById('reset-preview').innerHTML = `
+      <table><tbody>${rows}</tbody></table>`;
+
+    document.getElementById('reset-keep').textContent =
+      `${c.keptTransactions} transaksi milik Anda, seluruh kategori, dan seluruh pengguna tetap disimpan.`;
+
+    const warn = document.getElementById('reset-orphan');
+    if (c.orphanedTransactions > 0) {
+      warn.style.display = 'flex';
+      warn.querySelector('span:last-child').innerHTML =
+        `<span class="alert-title">${c.orphanedTransactions} transaksi Anda akan kehilangan rekening</span>` +
+        `Transaksi itu mengacu ke rekening yang ikut terhapus, sehingga kolom Rekening-nya menjadi kosong. ` +
+        `Buat rekening baru di menu Rekening Bank, lalu perbaiki transaksi tersebut lewat tombol edit di menu Transaksi.`;
+    } else {
+      warn.style.display = 'none';
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  el.innerHTML = `
+    <div class="page-header">
+      <div class="page-header-left"><h1>Pengaturan</h1><p>Administrasi data aplikasi</p></div>
+    </div>
+
+    <div class="card" style="max-width:720px;">
+      <div class="card-header"><span class="card-title">Reset Data Demo</span></div>
+      <div style="padding:20px;">
+        <p style="color:var(--text-secondary);font-size:13px;line-height:1.6;margin-bottom:18px;">
+          Menghapus data contoh bawaan aplikasi supaya Anda bisa mulai dari catatan sendiri.
+          Kategori dan pengguna tidak ikut terhapus, dan data yang Anda input sendiri tetap aman.
+        </p>
+
+        <label style="display:flex;align-items:center;gap:10px;margin-bottom:18px;cursor:pointer;font-size:13px;color:var(--text-secondary);">
+          <input type="checkbox" id="reset-wipe-accounts" checked onchange="refreshResetPreview()" />
+          Hapus seluruh rekening bank, termasuk yang saya buat sendiri
+        </label>
+
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:700;letter-spacing:0.4px;">AKAN DIHAPUS</div>
+        <div class="table-wrapper" id="reset-preview" style="margin-bottom:16px;"></div>
+
+        <div class="alert alert-warning" id="reset-orphan" style="display:none;">
+          <i data-lucide="alert-triangle"></i>
+          <span></span>
+        </div>
+
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;" id="reset-keep"></p>
+
+        <button class="btn btn-danger" onclick="doResetDemo()">
+          <i data-lucide="trash-2"></i> Hapus Data Demo
+        </button>
+      </div>
+    </div>
+  `;
+
+  window.refreshResetPreview = paint;
+
+  window.doResetDemo = async () => {
+    const wipeAll = document.getElementById('reset-wipe-accounts').checked;
+    const c = await previewDemoReset({ wipeAllAccounts: wipeAll });
+    const total = Object.keys(LABELS).reduce((s, k) => s + (c[k] || 0), 0);
+
+    if (total === 0) {
+      Utils.toast('Tidak ada data demo yang tersisa', 'info');
+      return;
+    }
+
+    const orphanNote = c.orphanedTransactions > 0
+      ? ` ${c.orphanedTransactions} transaksi milik Anda akan kehilangan rekeningnya.`
+      : '';
+
+    const ok = await Utils.confirm(
+      `${total} data demo akan dihapus permanen dan tidak bisa dikembalikan.${orphanNote} ` +
+      `Kategori, pengguna, dan ${c.keptTransactions} transaksi Anda tetap disimpan. Lanjutkan?`,
+      'Hapus Data Demo'
+    );
+    if (!ok) return;
+
+    const removed = await resetDemoData({ wipeAllAccounts: wipeAll });
+    const jumlah = Object.values(removed).reduce((s, n) => s + n, 0);
+    Utils.toast(`${jumlah} data demo dihapus`, 'success');
+    renderPage('settings');
+  };
+
+  await paint();
 }
 
 // ── Clock ─────────────────────────────────────────────────────────
