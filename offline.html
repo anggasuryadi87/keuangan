@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinMS — Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0a0e1a;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 2rem;
+    }
+    .offline-container {
+      max-width: 400px;
+    }
+    .offline-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 2rem;
+      font-size: 2.5rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(79, 142, 247, 0.15);
+      border: 1px solid rgba(79, 142, 247, 0.3);
+      color: #60a5fa;
+      padding: 0.5rem 1.25rem;
+      border-radius: 50px;
+      font-size: 0.875rem;
+      margin-bottom: 2rem;
+    }
+    button {
+      background: linear-gradient(135deg, #1d4ed8, #4f8ef7);
+      color: white;
+      border: none;
+      padding: 0.875rem 2rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(79, 142, 247, 0.35);
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="offline-icon">📡</div>
+    <div class="badge">Mode Offline Aktif</div>
+    <h1>Koneksi Terputus</h1>
+    <p>FinMS memerlukan koneksi internet untuk pertama kali. Data Anda tetap aman dan akan tersinkronisasi saat koneksi pulih.</p>
+    <button onclick="window.location.reload()">🔄 Coba Lagi</button>
+  </div>
+</body>
+</html>

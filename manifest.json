@@ -1,0 +1,43 @@
+{
+  "name": "FinMS — Financial Management System",
+  "short_name": "FinMS",
+  "description": "Sistem Manajemen Keuangan & Arus Kas untuk Perusahaan IT Solution",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0e1a",
+  "theme_color": "#4f8ef7",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "business", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Buka Executive Dashboard",
+      "url": "/index.html#dashboard",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Tambah Pengeluaran",
+      "short_name": "Pengeluaran",
+      "description": "Buat Payment Requisition baru",
+      "url": "/index.html#expenses",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
