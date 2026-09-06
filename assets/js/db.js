@@ -189,6 +189,48 @@ function genInvoiceNumber(year, month, seq) {
   return `INV/${year}/${String(month).padStart(2,'0')}/${String(seq).padStart(3,'0')}`;
 }
 
+// ── Categories added after the first release ──────────────────────
+// seedDatabase() only runs on an empty database, so anything added here
+// later also needs runMigrations() to backfill it into existing ones.
+const ADDED_CATEGORIES = [
+  { id: 'cat13', name: 'Project-Based Fee', flow_type: 'inflow',  section: 'operating', color: '#14b8a6' },
+  { id: 'cat14', name: 'Lain-lain',         flow_type: 'outflow', section: 'operating', color: '#64748b' },
+];
+
+// ── Migrations ────────────────────────────────────────────────────
+// Each entry runs once per database, tracked by id in settings.migrations.
+// Deleting a category the user removed on purpose would be worse than not
+// having it, so backfills only insert what is genuinely missing.
+const MIGRATIONS = [
+  {
+    id: '2026-09-add-project-fee-and-misc-categories',
+    async run() {
+      for (const c of ADDED_CATEGORIES) {
+        const existing = await DB.get('categories', c.id);
+        if (!existing) await DB.put('categories', c);
+      }
+    },
+  },
+];
+
+async function runMigrations() {
+  const record = await DB.get('settings', 'migrations');
+  const applied = new Set(record?.value || []);
+  let changed = false;
+
+  for (const m of MIGRATIONS) {
+    if (applied.has(m.id)) continue;
+    await m.run();
+    applied.add(m.id);
+    changed = true;
+    console.log('[DB] Migration applied:', m.id);
+  }
+
+  if (changed) {
+    await DB.put('settings', { key: 'migrations', value: [...applied], updated_at: new Date().toISOString() });
+  }
+}
+
 // ── Seed Data ─────────────────────────────────────────────────────
 async function seedDatabase() {
   const seeded = await DB.get('settings', 'seeded');
@@ -221,6 +263,7 @@ async function seedDatabase() {
     { id: 'cat10', name: 'Pinjaman Bank', flow_type: 'inflow', section: 'financing', color: '#06b6d4' },
     { id: 'cat11', name: 'Cicilan Pinjaman', flow_type: 'outflow', section: 'financing', color: '#f43f5e' },
     { id: 'cat12', name: 'Transfer Masuk', flow_type: 'inflow', section: 'operating', color: '#a3e635' },
+    ...ADDED_CATEGORIES,
   ];
   for (const c of categories) await DB.put('categories', c);
 
@@ -330,4 +373,5 @@ window.DB = DB;
 window.genId = genId;
 window.genInvoiceNumber = genInvoiceNumber;
 window.seedDatabase = seedDatabase;
+window.runMigrations = runMigrations;
 window.STORES = STORES;

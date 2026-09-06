@@ -2300,9 +2300,10 @@ window.fillLogin = (email, password) => {
 
 // ── App Bootstrap ─────────────────────────────────────────────────
 async function bootstrap() {
-  // Init DB + seed
+  // Init DB + seed, then backfill anything added after this database was seeded
   await openDB();
   await seedDatabase();
+  await runMigrations();
 
   // Try restore session
   const user = await Auth.restoreSession();
