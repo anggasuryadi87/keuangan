@@ -501,13 +501,27 @@ async function renderAccounts(el) {
 // ── TRANSACTIONS ──────────────────────────────────────
 // ════════════════════════════════════════════════════
 async function renderTransactions(el) {
-  const [transactions, accounts, categories] = await Promise.all([
+  const [transactions, accounts, categories, invoices, expenses] = await Promise.all([
     DB.getAll('transactions'), DB.getAll('accounts'), DB.getAll('categories'),
+    DB.getAll('invoices'), DB.getAll('expenses'),
   ]);
 
   const accMap = Object.fromEntries(accounts.map(a=>[a.id,a]));
   const catMap = Object.fromEntries(categories.map(c=>[c.id,c]));
+  const invMap = Object.fromEntries(invoices.map(i=>[i.id,i]));
+  const expMap = Object.fromEntries(expenses.map(e=>[e.id,e]));
   const sorted = [...transactions].sort((a,b) => b.date.localeCompare(a.date));
+
+  // Transactions generated from an invoice payment or an approved expense are
+  // mirrors of that record. Editing their numbers here would silently drift
+  // from the source, so those fields are locked and only the note is editable.
+  const isLinkedTx = (t) => Boolean(t && t.ref_id && (t.ref_type === 'invoice' || t.ref_type === 'expense'));
+
+  const txSourceLabel = (t) => {
+    if (!isLinkedTx(t)) return null;
+    if (t.ref_type === 'invoice') return { page: 'invoices', label: 'Invoice', name: invMap[t.ref_id]?.number || t.ref_id };
+    return { page: 'expenses', label: 'Pengeluaran', name: expMap[t.ref_id]?.title || t.ref_id };
+  };
 
   el.innerHTML = `
     <div class="page-header">
@@ -553,6 +567,13 @@ async function renderTransactions(el) {
           <button class="modal-close" onclick="Utils.closeModal('tx-modal')"><i data-lucide="x"></i></button>
         </div>
         <div class="modal-body">
+          <div class="alert alert-warning" id="tx-linked-alert" style="display:none;">
+            <i data-lucide="link"></i>
+            <div>
+              <span class="alert-title">Transaksi terkait dokumen sumber</span>
+              <span id="tx-linked-text"></span>
+            </div>
+          </div>
           <form id="tx-form">
             <input type="hidden" name="id" id="tx-id" />
             <div class="form-row form-row-2">
@@ -593,20 +614,28 @@ async function renderTransactions(el) {
   window.renderTxRows = renderTxRows;
   function renderTxRows(rows, aMap, cMap) {
     if (!rows.length) return `<tr><td colspan="7"><div class="table-empty"><i data-lucide="inbox"></i><p>Tidak ada transaksi</p></div></td></tr>`;
-    return rows.map(t => `
+    return rows.map(t => {
+      const src = txSourceLabel(t);
+      return `
       <tr>
         <td>${Utils.formatDate(t.date)}</td>
-        <td class="text-primary">${t.description}</td>
+        <td class="text-primary">
+          ${t.description}
+          ${src ? `<span class="badge badge-purple" style="margin-left:6px;" title="Dibuat otomatis dari ${src.label}: ${src.name} — nilainya dikunci di sini">
+            <i data-lucide="link" style="width:11px;height:11px;"></i> ${src.label}
+          </span>` : ''}
+        </td>
         <td>${aMap[t.account_id]?.name || '-'}</td>
         <td><span style="font-size:12px;color:var(--text-muted);">${cMap[t.category_id]?.name || '-'}</span></td>
         <td>${t.type === 'cash_in' ? '<span class="badge badge-green">Masuk</span>' : '<span class="badge badge-red">Keluar</span>'}</td>
         <td class="${t.type==='cash_in'?'amount-in':'amount-out'}" style="text-align:right;">${t.type==='cash_in'?'+':'-'}${Utils.formatRupiah(t.amount)}</td>
         <td style="white-space:nowrap;">
-          <button class="btn-icon" onclick="editTx('${t.id}')" title="Edit Transaksi" style="margin-right:4px;"><i data-lucide="pencil"></i></button>
+          <button class="btn-icon" onclick="editTx('${t.id}')" title="${src ? 'Edit catatan (nilai dikunci — sumber: ' + src.label + ')' : 'Edit Transaksi'}" style="margin-right:4px;"><i data-lucide="pencil"></i></button>
           <button class="btn-icon danger" onclick="deleteTx('${t.id}')" title="Hapus Transaksi"><i data-lucide="trash-2"></i></button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   }
 
   window.filterTx = () => {
@@ -633,9 +662,30 @@ async function renderTransactions(el) {
     window.filterTx();
   };
 
+  const LOCKED_FIELDS = ['type', 'date', 'account_id', 'category_id', 'amount'];
+
+  // Locks the fields a linked transaction shares with its source document.
+  // Pass null to unlock everything (manual transactions).
+  function applyTxLock(form, src) {
+    const alertEl = document.getElementById('tx-linked-alert');
+    LOCKED_FIELDS.forEach(name => { form.elements[name].disabled = Boolean(src); });
+
+    if (src) {
+      document.getElementById('tx-linked-text').innerHTML =
+        `Transaksi ini dibuat otomatis dari <strong>${src.label}: ${src.name}</strong>. ` +
+        `Nilai, tanggal, rekening, dan kategori dikunci agar tetap cocok dengan sumbernya — ` +
+        `ubah lewat menu ${src.label} bila perlu. Di sini hanya keterangan yang bisa disunting.`;
+      alertEl.style.display = 'flex';
+    } else {
+      alertEl.style.display = 'none';
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
   window.openTxModal = () => {
     const form = document.getElementById('tx-form');
     form.reset();
+    applyTxLock(form, null);
     document.getElementById('tx-id').value = '';
     document.getElementById('tx-modal-title').textContent = 'Tambah Transaksi';
     document.querySelector('#tx-form [name="date"]').value = Utils.formatDateInput(new Date().toISOString());
@@ -651,8 +701,10 @@ async function renderTransactions(el) {
     }
     const form = document.getElementById('tx-form');
     form.reset();
+    const src = txSourceLabel(tx);
+    applyTxLock(form, src);
     document.getElementById('tx-id').value = tx.id;
-    document.getElementById('tx-modal-title').textContent = 'Edit Transaksi';
+    document.getElementById('tx-modal-title').textContent = src ? 'Edit Keterangan Transaksi' : 'Edit Transaksi';
     form.elements['type'].value = tx.type;
     form.elements['date'].value = Utils.formatDateInput(tx.date);
     form.elements['account_id'].value = tx.account_id;
@@ -666,19 +718,30 @@ async function renderTransactions(el) {
   window.saveTx = async () => {
     const form = document.getElementById('tx-form');
     const data = Utils.getFormData(form);
-    if (!data.date || !data.amount || !data.description || !data.account_id) {
-      Utils.toast('Lengkapi semua field', 'error');
-      return;
-    }
     const isEdit = Boolean(data.id);
-    data.amount = Number(data.amount);
 
+    let oldTx = null;
     if (isEdit) {
-      const oldTx = await DB.get('transactions', data.id);
+      oldTx = await DB.get('transactions', data.id);
       if (!oldTx) {
         Utils.toast('Transaksi tidak ditemukan', 'error');
         return;
       }
+      // Disabled inputs are not submitted, so a linked transaction's locked
+      // fields come straight from the stored record. This also stops a
+      // re-enabled input in devtools from rewriting them.
+      if (isLinkedTx(oldTx)) {
+        LOCKED_FIELDS.forEach(name => { data[name] = oldTx[name] ?? ''; });
+      }
+    }
+
+    if (!data.date || !data.amount || !data.description || !data.account_id) {
+      Utils.toast('Lengkapi semua field', 'error');
+      return;
+    }
+    data.amount = Number(data.amount);
+
+    if (isEdit) {
       // Revert old transaction balance impact
       const oldAcc = await DB.get('accounts', oldTx.account_id);
       if (oldAcc) {
@@ -721,7 +784,13 @@ async function renderTransactions(el) {
   };
 
   window.deleteTx = async (id) => {
-    if (await Utils.confirm('Hapus transaksi ini?')) {
+    const target = await DB.get('transactions', id);
+    const src = txSourceLabel(target);
+    const message = src
+      ? `Transaksi ini berasal dari ${src.label}: ${src.name}. Menghapusnya di sini tidak menghapus dokumen sumbernya, sehingga catatan kas dan ${src.label.toLowerCase()} tidak lagi cocok. Tetap hapus?`
+      : 'Hapus transaksi ini?';
+
+    if (await Utils.confirm(message)) {
       const tx = await DB.get('transactions', id);
       if (tx) {
         const acc = await DB.get('accounts', tx.account_id);

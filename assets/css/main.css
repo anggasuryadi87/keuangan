@@ -618,6 +618,36 @@ td.amount-out { color: var(--red); font-weight: 700; }
 .badge-yellow { background: rgba(245,158,11,0.15);  color: #fcd34d; }
 .badge-cyan   { background: rgba(6,182,212,0.15);   color: #67e8f9; }
 
+/* ── Alerts ─────────────────────────────────────── */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+
+.alert svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+.alert-title { font-weight: 700; display: block; margin-bottom: 2px; }
+
+.alert-warning {
+  background: rgba(245,158,11,0.1);
+  border-color: rgba(245,158,11,0.3);
+  color: #fcd34d;
+}
+
+/* Locked inputs — value is owned by another record */
+.form-control:disabled,
+.form-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: rgba(10,16,32,0.6);
+}
+
 /* ── Modals ─────────────────────────────────────── */
 .modal-overlay {
   position: fixed; inset: 0;
