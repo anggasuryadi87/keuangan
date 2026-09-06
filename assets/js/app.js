@@ -526,11 +526,13 @@ async function renderTransactions(el) {
         <option value="">Semua Rekening</option>
         ${accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}
       </select>
-      <input type="month" class="filter-select" id="tx-month" value="${Utils.currentMonth()}" onchange="filterTx()" />
+      <input type="month" class="filter-select" id="tx-month" value="" onchange="filterTx()" title="Filter bulan — kosongkan untuk menampilkan semua" />
+      <button class="btn btn-ghost btn-sm" onclick="resetTxFilter()"><i data-lucide="rotate-ccw"></i> Reset Filter</button>
       <button class="btn btn-ghost btn-sm" onclick="exportTx()"><i data-lucide="download"></i> Export CSV</button>
     </div>
 
     <div class="card">
+      <div style="padding:12px 16px;font-size:12px;color:var(--text-muted);" id="tx-count"></div>
       <div class="table-wrapper">
         <table>
           <thead><tr>
@@ -618,7 +620,17 @@ async function renderTransactions(el) {
     if (acc) filtered = filtered.filter(t => t.account_id === acc);
     if (month) { const r = Utils.monthRange(month); filtered = filtered.filter(t => Utils.isInRange(t.date, r.start, r.end)); }
     document.getElementById('tx-tbody').innerHTML = renderTxRows(filtered, accMap, catMap);
+    const info = document.getElementById('tx-count');
+    if (info) info.textContent = `Menampilkan ${filtered.length} dari ${_allTx.length} transaksi`;
     if (window.lucide) lucide.createIcons();
+  };
+
+  window.resetTxFilter = () => {
+    document.getElementById('tx-search').value = '';
+    document.getElementById('tx-type').value = '';
+    document.getElementById('tx-account').value = '';
+    document.getElementById('tx-month').value = '';
+    window.filterTx();
   };
 
   window.openTxModal = () => {

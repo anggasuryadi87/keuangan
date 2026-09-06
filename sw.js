@@ -1,5 +1,5 @@
 // FinMS Service Worker — Offline-First Cache Strategy
-const CACHE_NAME = 'finms-v1.2.0';
+const CACHE_NAME = 'finms-v1.3.0';
 const OFFLINE_URL = '/offline.html';
 
 const PRECACHE_URLS = [
@@ -71,7 +71,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Assets: Cache-first strategy
+  // App code (own JS/CSS): Network-first, so updates reach the browser
+  // immediately instead of being pinned to whatever was cached first.
+  const isAppCode = url.origin === location.origin &&
+    (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'));
+
+  if (isAppCode) {
+    event.respondWith(
+      fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+        }
+        return networkResponse;
+      }).catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Other assets (icons, CDN libs): Cache-first strategy
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {
