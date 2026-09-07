@@ -18,7 +18,7 @@
       padding: 2rem;
     }
     .offline-container {
-      max-width: 400px;
+      max-width: 470px;
     }
     .offline-icon {
       width: 80px;
@@ -42,7 +42,45 @@
     p {
       color: #94a3b8;
       line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+    .fix {
+      text-align: left;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(79, 142, 247, 0.2);
+      border-radius: 12px;
+      padding: 1.25rem;
       margin-bottom: 2rem;
+    }
+    .fix-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 0.75rem;
+    }
+    .fix code {
+      display: block;
+      background: #060b16;
+      border: 1px solid rgba(79, 142, 247, 0.22);
+      border-radius: 8px;
+      padding: 0.7rem 0.9rem;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.875rem;
+      color: #93c5fd;
+      overflow-x: auto;
+      white-space: pre;
+      line-height: 1.7;
+    }
+    .fix-note {
+      font-size: 0.8125rem;
+      color: #64748b;
+      line-height: 1.55;
+      margin: 0.75rem 0 0;
+    }
+    .safe {
+      font-size: 0.875rem;
+      color: #6ee7b7;
+      margin-bottom: 1.5rem;
     }
     .badge {
       display: inline-block;
@@ -73,10 +111,24 @@
 </head>
 <body>
   <div class="offline-container">
-    <div class="offline-icon">📡</div>
-    <div class="badge">Mode Offline Aktif</div>
-    <h1>Koneksi Terputus</h1>
-    <p>FinMS memerlukan koneksi internet untuk pertama kali. Data Anda tetap aman dan akan tersinkronisasi saat koneksi pulih.</p>
+    <div class="offline-icon">🔌</div>
+    <div class="badge">Server Lokal Tidak Aktif</div>
+    <h1>Tidak Bisa Terhubung</h1>
+    <p>FinMS dilayani oleh server lokal di komputer ini. Halaman ini muncul karena server tersebut sedang tidak berjalan.</p>
+
+    <p class="safe">✓ Data Anda tidak terpengaruh — tersimpan di browser ini dan akan muncul kembali begitu server hidup.</p>
+
+    <div class="fix">
+      <div class="fix-title">Jalankan kembali servernya</div>
+      <code>cd D:\keuangan
+node dev_server.js</code>
+      <p class="fix-note">
+        Jalankan di PowerShell atau Command Prompt, tunggu sampai muncul
+        <em>FinMS Server running</em>, lalu tekan Coba Lagi.
+        Biarkan jendela terminal tetap terbuka selama aplikasi dipakai.
+      </p>
+    </div>
+
     <button onclick="window.location.reload()">🔄 Coba Lagi</button>
   </div>
 </body>

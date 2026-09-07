@@ -1,5 +1,5 @@
 // FinMS Service Worker — Offline-First Cache Strategy
-const CACHE_NAME = 'finms-v1.3.0';
+const CACHE_NAME = 'finms-v1.4.0';
 const OFFLINE_URL = '/offline.html';
 
 const PRECACHE_URLS = [
