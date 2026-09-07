@@ -36,6 +36,20 @@ http://127.0.0.1:5173
 
 Buka alamat tersebut di browser. Untuk menghentikan server, tekan `Ctrl + C` di terminal.
 
+> ### ⚠️ Selalu gunakan alamat yang sama setiap kali
+>
+> Data disimpan di IndexedDB, yang **terikat pada origin** — kombinasi skema, host, dan port.
+> `http://localhost:5173` dan `http://127.0.0.1:5173` dianggap **dua origin berbeda** oleh
+> browser, meskipun keduanya menunjuk ke server dan file yang sama persis.
+>
+> Artinya masing-masing punya database sendiri. Membuka lewat alamat yang berbeda dari
+> biasanya akan menampilkan aplikasi yang seolah kosong dan terisi ulang data demo —
+> **data lama tidak hilang**, hanya tersimpan di origin yang satunya. Kembali ke alamat semula
+> akan memunculkannya lagi.
+>
+> Hal yang sama berlaku bila membuka lewat port lain, misalnya Live Server di `:5500`.
+> Pilih satu alamat, lalu gunakan itu terus.
+
 > **Jangan membuka `index.html` langsung lewat klik dua kali (`file://`).**
 > Service worker dan seluruh path aset menggunakan path absolut dari root domain, sehingga
 > aplikasi hanya berfungsi penuh bila disajikan lewat HTTP.
@@ -117,9 +131,16 @@ assets/js/app.js      Router SPA dan seluruh renderer halaman
 
 ## 7. Hal yang perlu diketahui
 
-**Data terikat pada satu browser.** IndexedDB bersifat per-browser dan per-perangkat.
-Data yang diinput di Chrome tidak akan terlihat di Firefox atau di komputer lain.
-Menghapus data situs (*clear browsing data*) akan **menghapus seluruh isi aplikasi**.
+**Data terikat pada satu browser dan satu origin.** IndexedDB bersifat per-browser,
+per-perangkat, dan per-origin. Data yang diinput di Chrome tidak akan terlihat di Firefox,
+di komputer lain, maupun saat aplikasi dibuka lewat alamat berbeda (`localhost` vs
+`127.0.0.1` vs port lain). Menghapus data situs (*clear browsing data*) akan **menghapus
+seluruh isi aplikasi**.
+
+**Bila data terlihat hilang, periksa origin lain dulu.** Buka DevTools → Application →
+IndexedDB pada tiap alamat yang pernah dipakai (`http://localhost:5173`,
+`http://127.0.0.1:5173`, atau port lain). Database bernama `finms_db` akan muncul di origin
+tempat data itu sebenarnya tersimpan.
 
 **Belum ada backup.** Tidak ada ekspor menyeluruh maupun sinkronisasi server. Ekspor CSV
 per halaman tersedia, tetapi bukan cadangan lengkap.
