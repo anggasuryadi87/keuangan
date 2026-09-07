@@ -10,3 +10,6 @@ finms-backup-*.json
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Kredensial database — salin dari api/config.sample.php lalu sesuaikan.
+api/config.php

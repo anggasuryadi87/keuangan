@@ -2,7 +2,7 @@
   "name": "FinMS — Financial Management System",
   "short_name": "FinMS",
   "description": "Sistem Manajemen Keuangan & Arus Kas untuk Perusahaan IT Solution",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0a0e1a",
@@ -29,14 +29,14 @@
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "Buka Executive Dashboard",
-      "url": "/index.html#dashboard",
+      "url": "./index.html#dashboard",
       "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Tambah Pengeluaran",
       "short_name": "Pengeluaran",
       "description": "Buat Payment Requisition baru",
-      "url": "/index.html#expenses",
+      "url": "./index.html#expenses",
       "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]

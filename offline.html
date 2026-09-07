@@ -112,20 +112,19 @@
 <body>
   <div class="offline-container">
     <div class="offline-icon">🔌</div>
-    <div class="badge">Server Lokal Tidak Aktif</div>
+    <div class="badge">Server Tidak Aktif</div>
     <h1>Tidak Bisa Terhubung</h1>
-    <p>FinMS dilayani oleh server lokal di komputer ini. Halaman ini muncul karena server tersebut sedang tidak berjalan.</p>
+    <p>FinMS dilayani oleh Apache dan menyimpan datanya di MySQL. Halaman ini muncul karena salah satu layanan tersebut sedang tidak berjalan.</p>
 
-    <p class="safe">✓ Data Anda tidak terpengaruh — tersimpan di browser ini dan akan muncul kembali begitu server hidup.</p>
+    <p class="safe">✓ Data Anda tidak terpengaruh — tersimpan di database MySQL dan akan muncul kembali begitu layanan hidup.</p>
 
     <div class="fix">
-      <div class="fix-title">Jalankan kembali servernya</div>
-      <code>cd D:\keuangan
-node dev_server.js</code>
+      <div class="fix-title">Hidupkan lewat XAMPP Control Panel</div>
+      <code>Apache  →  Start
+MySQL   →  Start</code>
       <p class="fix-note">
-        Jalankan di PowerShell atau Command Prompt, tunggu sampai muncul
-        <em>FinMS Server running</em>, lalu tekan Coba Lagi.
-        Biarkan jendela terminal tetap terbuka selama aplikasi dipakai.
+        Buka XAMPP Control Panel, jalankan <em>kedua</em> layanan sampai statusnya hijau,
+        lalu tekan Coba Lagi. MySQL yang mati membuat data tidak terbaca meski Apache hidup.
       </p>
     </div>
 

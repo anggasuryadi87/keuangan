@@ -26,34 +26,44 @@ const ROLES = {
 const Auth = {
   currentUser: null,
 
+  // Credentials are checked by the server against a bcrypt hash. The browser
+  // never sees a stored password, and the session lives in an HttpOnly cookie
+  // rather than in localStorage where any script could read it.
   async login(email, password) {
-    const db = await openDB();
-    const users = await DB.getAll('users');
-    const user = users.find(u => u.email === email && u.password === password && u.active);
-    if (!user) throw new Error('Email atau password salah');
-    this.currentUser = user;
-    localStorage.setItem('finms_session', JSON.stringify({ id: user.id, email: user.email, role: user.role, name: user.name }));
-    return user;
+    const res = await fetch('api/auth.php?action=login', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    let payload = null;
+    try { payload = await res.json(); } catch { /* handled below */ }
+
+    if (!res.ok) throw new Error(payload?.error || 'Tidak bisa menghubungi server.');
+
+    this.currentUser = payload;
+    return payload;
   },
 
-  logout() {
+  async logout() {
+    try {
+      await fetch('api/auth.php?action=logout', { method: 'POST', credentials: 'same-origin' });
+    } catch { /* the reload below still drops the client state */ }
     this.currentUser = null;
-    localStorage.removeItem('finms_session');
     window.location.reload();
   },
 
   async restoreSession() {
-    const session = localStorage.getItem('finms_session');
-    if (!session) return null;
     try {
-      const s = JSON.parse(session);
-      const user = await DB.get('users', s.id);
+      const res = await fetch('api/auth.php?action=me', { credentials: 'same-origin' });
+      if (!res.ok) return null;
+      const user = await res.json();
       if (user && user.active) {
         this.currentUser = user;
         return user;
       }
-    } catch (e) {}
-    localStorage.removeItem('finms_session');
+    } catch { /* server unreachable — treat as logged out */ }
     return null;
   },
 

@@ -1,19 +1,21 @@
 // FinMS Service Worker — Offline-First Cache Strategy
-const CACHE_NAME = 'finms-v1.4.0';
-const OFFLINE_URL = '/offline.html';
+// Paths are relative to the service worker's own location, so the app works
+// wherever it is mounted — /finms/ under Apache today, the domain root before.
+const CACHE_NAME = 'finms-v2.0.0';
+const OFFLINE_URL = new URL('offline.html', self.registration.scope).pathname;
 
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/offline.html',
-  '/manifest.json',
-  '/assets/css/main.css',
-  '/assets/js/db.js',
-  '/assets/js/auth.js',
-  '/assets/js/utils.js',
-  '/assets/js/app.js',
-  '/assets/icons/icon-192.png',
-  '/assets/icons/icon-512.png'
+  './',
+  './index.html',
+  './offline.html',
+  './manifest.json',
+  './assets/css/main.css',
+  './assets/js/db.js',
+  './assets/js/auth.js',
+  './assets/js/utils.js',
+  './assets/js/app.js',
+  './assets/icons/icon-192.png',
+  './assets/icons/icon-512.png'
 ];
 
 // Install: Pre-cache critical assets
@@ -60,6 +62,10 @@ self.addEventListener('fetch', (event) => {
       !url.hostname.includes('unpkg.com')) {
     return;
   }
+
+  // Never cache the API. These responses are live financial data, and a cached
+  // balance or transaction list would be worse than no answer at all.
+  if (url.pathname.includes('/api/')) return;
 
   // Navigation requests: Network-first, fallback to offline page
   if (request.mode === 'navigate') {
@@ -125,8 +131,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'FinMS Notification';
   const options = {
     body: data.body || 'Ada notifikasi baru dari FinMS',
-    icon: '/assets/icons/icon-192.png',
-    badge: '/assets/icons/icon-192.png',
+    icon: './assets/icons/icon-192.png',
+    badge: './assets/icons/icon-192.png',
     vibrate: [100, 50, 100],
     data: { url: data.url || '/' }
   };

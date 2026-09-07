@@ -1,10 +1,15 @@
-// FinMS — IndexedDB Engine + Seed Data
-// Uses idb-keyval-style pattern over raw IndexedDB
+// FinMS — MySQL Engine (via PHP API) + Seed Data
+//
+// Data lives in MySQL and is reached over api/records.php. The DB object below
+// keeps the exact method names and shapes the IndexedDB version had — getAll,
+// get, put, delete, clear, getByIndex — so every page in app.js works unchanged
+// and the storage swap stays contained to this file.
+//
+// One consequence of the move: records are shared by every browser and device
+// that can reach this server, instead of being trapped in one browser's
+// per-origin store.
 
-const DB_NAME = 'finms_db';
-const DB_VERSION = 1;
-
-let _db = null;
+const API_BASE = 'api';
 
 const STORES = {
   users: 'users',
@@ -21,162 +26,81 @@ const STORES = {
   settings: 'settings',
 };
 
-// ── Open / Init DB ────────────────────────────────────────────────
-function openDB() {
-  return new Promise((resolve, reject) => {
-    if (_db) return resolve(_db);
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-
-      // users
-      if (!db.objectStoreNames.contains('users')) {
-        const s = db.createObjectStore('users', { keyPath: 'id' });
-        s.createIndex('email', 'email', { unique: true });
-        s.createIndex('role', 'role', { unique: false });
-      }
-      // clients
-      if (!db.objectStoreNames.contains('clients')) {
-        const s = db.createObjectStore('clients', { keyPath: 'id' });
-        s.createIndex('name', 'name', { unique: false });
-      }
-      // projects
-      if (!db.objectStoreNames.contains('projects')) {
-        const s = db.createObjectStore('projects', { keyPath: 'id' });
-        s.createIndex('client_id', 'client_id', { unique: false });
-        s.createIndex('status', 'status', { unique: false });
-      }
-      // milestones
-      if (!db.objectStoreNames.contains('milestones')) {
-        const s = db.createObjectStore('milestones', { keyPath: 'id' });
-        s.createIndex('project_id', 'project_id', { unique: false });
-      }
-      // invoices
-      if (!db.objectStoreNames.contains('invoices')) {
-        const s = db.createObjectStore('invoices', { keyPath: 'id' });
-        s.createIndex('project_id', 'project_id', { unique: false });
-        s.createIndex('status', 'status', { unique: false });
-        s.createIndex('due_date', 'due_date', { unique: false });
-      }
-      // invoice_payments
-      if (!db.objectStoreNames.contains('invoice_payments')) {
-        const s = db.createObjectStore('invoice_payments', { keyPath: 'id' });
-        s.createIndex('invoice_id', 'invoice_id', { unique: false });
-      }
-      // expenses
-      if (!db.objectStoreNames.contains('expenses')) {
-        const s = db.createObjectStore('expenses', { keyPath: 'id' });
-        s.createIndex('status', 'status', { unique: false });
-        s.createIndex('account_id', 'account_id', { unique: false });
-      }
-      // accounts
-      if (!db.objectStoreNames.contains('accounts')) {
-        db.createObjectStore('accounts', { keyPath: 'id' });
-      }
-      // transactions
-      if (!db.objectStoreNames.contains('transactions')) {
-        const s = db.createObjectStore('transactions', { keyPath: 'id' });
-        s.createIndex('account_id', 'account_id', { unique: false });
-        s.createIndex('date', 'date', { unique: false });
-        s.createIndex('type', 'type', { unique: false });
-        s.createIndex('category_id', 'category_id', { unique: false });
-      }
-      // categories
-      if (!db.objectStoreNames.contains('categories')) {
-        const s = db.createObjectStore('categories', { keyPath: 'id' });
-        s.createIndex('flow_type', 'flow_type', { unique: false });
-      }
-      // reconciliations
-      if (!db.objectStoreNames.contains('reconciliations')) {
-        const s = db.createObjectStore('reconciliations', { keyPath: 'id' });
-        s.createIndex('account_id', 'account_id', { unique: false });
-      }
-      // settings
-      if (!db.objectStoreNames.contains('settings')) {
-        db.createObjectStore('settings', { keyPath: 'key' });
-      }
-    };
-
-    request.onsuccess = (e) => {
-      _db = e.target.result;
-      resolve(_db);
-    };
-    request.onerror = (e) => reject(e.target.error);
+// ── Transport ─────────────────────────────────────────────────────
+// Every call goes to the same PHP endpoint; the session cookie rides along
+// automatically because the API is served from this same origin.
+async function apiCall(path, options = {}) {
+  const res = await fetch(`${API_BASE}/${path}`, {
+    credentials: 'same-origin',
+    ...options,
   });
+
+  if (res.status === 401) {
+    // The server session expired or was never established. Sending the user
+    // back to the login screen beats letting every page render empty.
+    throw new Error('Sesi berakhir. Silakan login kembali.');
+  }
+
+  let payload = null;
+  try {
+    payload = await res.json();
+  } catch {
+    throw new Error(`Respons server tidak terbaca (HTTP ${res.status}).`);
+  }
+
+  if (!res.ok) throw new Error(payload?.error || `Gagal menghubungi server (HTTP ${res.status}).`);
+  return payload;
+}
+
+const recordUrl = (store, params = {}) => {
+  const q = new URLSearchParams({ store, ...params });
+  return `records.php?${q.toString()}`;
+};
+
+// Kept so bootstrap() and any older caller still have something to await.
+// There is no connection to open any more — the check just proves the API and
+// database are reachable before the app starts drawing pages.
+async function openDB() {
+  await apiCall(recordUrl('settings'));
+  return true;
 }
 
 // ── Generic CRUD ──────────────────────────────────────────────────
 const DB = {
   async add(store, record) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readwrite');
-      const req = tx.objectStore(store).add(record);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+    return this.put(store, record);
   },
 
   async put(store, record) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readwrite');
-      const req = tx.objectStore(store).put(record);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+    const res = await apiCall(recordUrl(store), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
     });
+    return res.id;
   },
 
   async get(store, id) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readonly');
-      const req = tx.objectStore(store).get(id);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+    // IndexedDB resolved undefined for a missing key; the API answers null.
+    // Normalising here keeps `if (!existing)` checks elsewhere behaving.
+    const row = await apiCall(recordUrl(store, { id }));
+    return row === null ? undefined : row;
   },
 
   async getAll(store) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readonly');
-      const req = tx.objectStore(store).getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+    return apiCall(recordUrl(store));
   },
 
   async getByIndex(store, indexName, value) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readonly');
-      const idx = tx.objectStore(store).index(indexName);
-      const req = idx.getAll(value);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+    return apiCall(recordUrl(store, { index: indexName, value }));
   },
 
   async delete(store, id) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readwrite');
-      const req = tx.objectStore(store).delete(id);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    await apiCall(recordUrl(store, { id }), { method: 'DELETE' });
   },
 
   async clear(store) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readwrite');
-      const req = tx.objectStore(store).clear();
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    await apiCall(recordUrl(store, { all: '1' }), { method: 'DELETE' });
   },
 };
 

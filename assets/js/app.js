@@ -2500,22 +2500,17 @@ window.fillLogin = (email, password) => {
 };
 
 // ── App Bootstrap ─────────────────────────────────────────────────
-async function bootstrap() {
-  // Init DB + seed, then backfill anything added after this database was seeded
+// The database now sits behind the session, so nothing that touches it can run
+// before login. Anything DB-related waits until there is a user.
+async function prepareData() {
   await openDB();
   await seedDatabase();
   await runMigrations();
+}
 
-  // Try restore session
-  const user = await Auth.restoreSession();
-
-  if (user) {
-    showApp();
-  } else {
-    showLogin();
-  }
-
-  // Login form
+async function bootstrap() {
+  // Wire the login form before anything that can fail, so a server or database
+  // problem still leaves the user a way to sign in and see the real error.
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
@@ -2528,6 +2523,7 @@ async function bootstrap() {
 
     try {
       await Auth.login(email, pass);
+      await prepareData();
       showApp();
     } catch (err) {
       errEl.textContent = err.message;
@@ -2537,9 +2533,26 @@ async function bootstrap() {
     }
   });
 
+  // Resume an existing server session, if there is one.
+  try {
+    const user = await Auth.restoreSession();
+    if (user) {
+      await prepareData();
+      showApp();
+    } else {
+      showLogin();
+    }
+  } catch (err) {
+    showLogin();
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+    console.error('[bootstrap]', err);
+  }
+
   // SW Registration
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(err => console.warn('[SW]', err));
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('[SW]', err));
   }
 
   // Mobile check
