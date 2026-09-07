@@ -358,12 +358,12 @@ async function renderDashboard(el) {
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: {
-            legend: { labels: { color: '#8ca5c8', font: { family: 'Inter', size: 12 } } },
+            legend: { labels: { color: '#666', font: { family: 'Source Sans 3', size: 12 } } },
             tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: Rp ${ctx.parsed.y.toFixed(1)}jt` } }
           },
           scales: {
-            x: { ticks: { color: '#4a6080', font: { family: 'Inter', size: 11 } }, grid: { color: 'rgba(79,142,247,0.05)' } },
-            y: { ticks: { color: '#4a6080', font: { family: 'Inter', size: 11 }, callback: v => `${v}jt` }, grid: { color: 'rgba(79,142,247,0.07)' } }
+            x: { ticks: { color: '#666', font: { family: 'Source Sans 3', size: 11 } }, grid: { color: '#f4f4f4' } },
+            y: { ticks: { color: '#666', font: { family: 'Source Sans 3', size: 11 }, callback: v => `${v}jt` }, grid: { color: '#f4f4f4' } }
           }
         }
       });
@@ -931,7 +931,7 @@ async function renderCashflow(el) {
 
     html += `
       <div class="card">
-        <div class="card-body" style="background:rgba(79,142,247,0.05);border-radius:var(--radius-md);">
+        <div class="card-body" style="background:#f9fafc;border-radius:var(--radius-md);">
           <table style="width:100%;">
             <tbody>
               <tr><td style="font-weight:600;">Saldo Awal Periode</td><td style="text-align:right;">${Utils.formatRupiah(openBal)}</td></tr>
@@ -1356,7 +1356,7 @@ async function renderInvoices(el) {
           <button class="modal-close" onclick="Utils.closeModal('payment-modal')"><i data-lucide="x"></i></button>
         </div>
         <div class="modal-body">
-          <div id="payment-invoice-info" style="background:rgba(79,142,247,0.06);border-radius:var(--radius-md);padding:12px;margin-bottom:16px;font-size:13px;color:var(--text-secondary);"></div>
+          <div id="payment-invoice-info" style="background:#f9fafc;border-radius:var(--radius-md);padding:12px;margin-bottom:16px;font-size:13px;color:var(--text-secondary);"></div>
           <form id="payment-form">
             <input type="hidden" name="invoice_id" id="pay-invoice-id" />
             <div class="form-group"><label class="form-label">Tanggal Pembayaran</label><input name="date" type="date" class="form-control" required /></div>
@@ -1797,7 +1797,7 @@ async function renderReconciliation(el) {
     <div class="card" style="margin-bottom:20px;">
       <div class="card-header"><span class="card-title">Import Mutasi Bank (CSV)</span></div>
       <div class="card-body">
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Format CSV: <code style="background:rgba(79,142,247,0.1);padding:2px 8px;border-radius:4px;">tanggal,keterangan,debit,kredit</code></p>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Format CSV: <code style="background:#f4f4f4;padding:2px 8px;border-radius:4px;">tanggal,keterangan,debit,kredit</code></p>
         <div class="form-row form-row-2">
           <div class="form-group">
             <label class="form-label">Rekening</label>
