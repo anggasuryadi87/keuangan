@@ -231,6 +231,70 @@ async function runMigrations() {
   }
 }
 
+// ── Backup / Restore ──────────────────────────────────────────────
+// IndexedDB is scoped per origin, so the same app served from
+// localhost:5173 and 127.0.0.1:5173 keeps two unrelated databases. A file
+// on disk is the only thing that moves data between them — or survives a
+// cleared browser at all.
+const EXPORT_FORMAT = 'finms-backup';
+const EXPORT_VERSION = 1;
+
+async function exportAllData() {
+  const data = {};
+  for (const store of Object.values(STORES)) {
+    data[store] = await DB.getAll(store);
+  }
+  return {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    origin: location.origin,
+    counts: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, v.length])),
+    data,
+  };
+}
+
+function validateBackup(payload) {
+  if (!payload || payload.format !== EXPORT_FORMAT) return 'File ini bukan backup FinMS.';
+  if (!payload.data || typeof payload.data !== 'object') return 'Isi file backup tidak terbaca.';
+  const known = Object.values(STORES);
+  if (!Object.keys(payload.data).some(s => known.includes(s))) {
+    return 'Backup tidak memuat satu pun tabel yang dikenali.';
+  }
+  return null;
+}
+
+// mode 'merge'   — record dengan id sama ditimpa, sisanya dipertahankan
+// mode 'replace' — seluruh isi tabel dikosongkan lebih dulu
+async function importAllData(payload, { mode = 'merge' } = {}) {
+  const problem = validateBackup(payload);
+  if (problem) throw new Error(problem);
+
+  const result = { mode, stores: {}, total: 0 };
+
+  for (const store of Object.values(STORES)) {
+    const rows = payload.data[store];
+    if (!Array.isArray(rows)) continue;
+
+    // Replacing users with an empty list would lock everyone out.
+    const wipeFirst = mode === 'replace' && !(store === 'users' && rows.length === 0);
+    if (wipeFirst) await DB.clear(store);
+
+    for (const row of rows) await DB.put(store, row);
+    result.stores[store] = rows.length;
+    result.total += rows.length;
+  }
+
+  // A restored database must never look empty to seedDatabase(), or the whole
+  // demo dataset lands back on top of the data we just brought in.
+  if (!(await DB.get('settings', 'seeded'))) {
+    await DB.put('settings', { key: 'seeded', value: true, seeded_at: new Date().toISOString() });
+  }
+
+  console.log('[DB] Backup imported:', result);
+  return result;
+}
+
 // ── Demo dataset ──────────────────────────────────────────────────
 // Ids created by seedDatabase(). Listing them explicitly lets the reset drop
 // the demo dataset while leaving anything the user entered untouched.
@@ -450,6 +514,8 @@ window.genId = genId;
 window.genInvoiceNumber = genInvoiceNumber;
 window.seedDatabase = seedDatabase;
 window.runMigrations = runMigrations;
+window.exportAllData = exportAllData;
+window.importAllData = importAllData;
 window.previewDemoReset = previewDemoReset;
 window.resetDemoData = resetDemoData;
 window.SEED_IDS = SEED_IDS;

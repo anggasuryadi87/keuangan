@@ -2272,6 +2272,15 @@ async function renderSettings(el) {
     document.getElementById('reset-preview').innerHTML = `
       <table><tbody>${rows}</tbody></table>`;
 
+    const snapshot = await exportAllData();
+    const totalRecord = Object.values(snapshot.counts).reduce((s, n) => s + n, 0);
+    const ringkas = document.getElementById('backup-summary');
+    if (ringkas) {
+      ringkas.textContent = `Saat ini ada ${totalRecord} record — ` +
+        `${snapshot.counts.transactions} transaksi, ${snapshot.counts.accounts} rekening, ` +
+        `${snapshot.counts.categories} kategori, ${snapshot.counts.invoices} invoice.`;
+    }
+
     document.getElementById('reset-keep').textContent =
       `${c.keptTransactions} transaksi milik Anda, seluruh kategori, dan seluruh pengguna tetap disimpan.`;
 
@@ -2291,6 +2300,36 @@ async function renderSettings(el) {
   el.innerHTML = `
     <div class="page-header">
       <div class="page-header-left"><h1>Pengaturan</h1><p>Administrasi data aplikasi</p></div>
+    </div>
+
+    <div class="card" style="max-width:720px;margin-bottom:20px;">
+      <div class="card-header"><span class="card-title">Backup &amp; Pemulihan</span></div>
+      <div style="padding:20px;">
+        <p style="color:var(--text-secondary);font-size:13px;line-height:1.6;margin-bottom:16px;">
+          Data FinMS hanya tersimpan di browser ini, pada alamat <code style="font-size:12px;">${location.origin}</code>.
+          Membuka aplikasi lewat alamat lain berarti database yang berbeda. Simpan file backup
+          secara berkala — itu satu-satunya salinan yang bertahan bila data browser terhapus,
+          dan satu-satunya cara memindahkan data antar alamat.
+        </p>
+
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:700;letter-spacing:0.4px;">SIMPAN SALINAN</div>
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;" id="backup-summary"></p>
+        <button class="btn btn-primary" onclick="doExportBackup()" style="margin-bottom:24px;">
+          <i data-lucide="download"></i> Unduh Backup (.json)
+        </button>
+
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:700;letter-spacing:0.4px;">PULIHKAN DARI FILE</div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <select class="form-select" id="import-mode" style="max-width:340px;">
+            <option value="merge">Gabungkan — data yang ada tetap, id sama ditimpa</option>
+            <option value="replace">Ganti total — kosongkan dulu, lalu isi dari file</option>
+          </select>
+        </div>
+        <input type="file" id="import-file" accept="application/json,.json" style="display:none;" onchange="doImportBackup(this)" />
+        <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">
+          <i data-lucide="upload"></i> Pilih File Backup
+        </button>
+      </div>
     </div>
 
     <div class="card" style="max-width:720px;">
@@ -2324,6 +2363,57 @@ async function renderSettings(el) {
   `;
 
   window.refreshResetPreview = paint;
+
+  window.doExportBackup = async () => {
+    const payload = await exportAllData();
+    const stamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `finms-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    const total = Object.values(payload.counts).reduce((s, n) => s + n, 0);
+    Utils.toast(`Backup ${total} record diunduh`, 'success');
+  };
+
+  window.doImportBackup = async (input) => {
+    const file = input.files && input.files[0];
+    input.value = ''; // allow picking the same file again after a cancel
+    if (!file) return;
+
+    let payload;
+    try {
+      payload = JSON.parse(await file.text());
+    } catch {
+      Utils.toast('File tidak bisa dibaca sebagai JSON', 'error');
+      return;
+    }
+
+    const mode = document.getElementById('import-mode').value;
+    const counts = payload.counts || {};
+    const total = Object.values(counts).reduce((s, n) => s + (Number(n) || 0), 0);
+    const asal = payload.origin && payload.origin !== location.origin
+      ? ` Backup ini dibuat di ${payload.origin}, berbeda dari alamat sekarang.`
+      : '';
+
+    const message = mode === 'replace'
+      ? `Seluruh data di alamat ini akan dikosongkan lebih dulu, lalu diisi ${total} record dari file. Data yang sekarang ada dan tidak terdapat di file akan hilang permanen.${asal} Lanjutkan?`
+      : `${total} record dari file akan dimasukkan. Record dengan id sama akan ditimpa, sisanya tetap.${asal} Lanjutkan?`;
+
+    if (!(await Utils.confirm(message, mode === 'replace' ? 'Ganti Total Data' : 'Gabungkan Backup'))) return;
+
+    try {
+      const res = await importAllData(payload, { mode });
+      Utils.toast(`${res.total} record dipulihkan`, 'success');
+      renderPage('settings');
+    } catch (err) {
+      Utils.toast(err.message, 'error');
+    }
+  };
 
   window.doResetDemo = async () => {
     const wipeAll = document.getElementById('reset-wipe-accounts').checked;

@@ -1,6 +1,11 @@
 # Local tooling / editor config
 .claude/
 
+# Backup exports — berisi data keuangan dan password pengguna dalam teks biasa.
+# Simpan di luar repo, jangan pernah di-commit.
+data backup/
+finms-backup-*.json
+
 # OS files
 Thumbs.db
 desktop.ini
