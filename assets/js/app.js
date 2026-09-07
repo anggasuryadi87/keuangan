@@ -2492,13 +2492,6 @@ window.installPWA = async () => {
 
 window.addEventListener('appinstalled', () => Utils.toast('FinMS berhasil diinstall', 'success'));
 
-// ── Fill Login ────────────────────────────────────────────────────
-window.fillLogin = (email, password) => {
-  document.getElementById('login-email').value = email;
-  document.getElementById('login-password').value = password;
-  document.getElementById('login-form').dispatchEvent(new Event('submit'));
-};
-
 // ── App Bootstrap ─────────────────────────────────────────────────
 // The database now sits behind the session, so nothing that touches it can run
 // before login. Anything DB-related waits until there is a user.
